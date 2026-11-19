@@ -73,6 +73,39 @@ sdkMessage('同时观看人数达到账号最大限制，请联系客服')
 assert.match(unknown.calls.at(-1), /观看人数/)
 await unknown.preview.close()
 
+const requests = []
+let reply = pending()
+globalThis.fetch = (url, options) => {
+  requests.push({ url, options })
+  return reply.promise
+}
+const ezInfo = { data: { url: 'ezopen://open.ys7.com/TEST00001/1.live', token: 'fixture-token-private' } }
+const lookup = fixture({
+  getInfo: async () => ezInfo,
+  observeMessage(id, notify) { sdkMessage = notify; return () => {} },
+})
+await lookup.preview.open()
+sdkMessage('设备不在线')
+sdkMessage('设备不在线')
+assert.equal(requests.length, 1)
+assert.equal(requests[0].url, 'https://open.ys7.com/api/lapp/device/info')
+assert.equal(requests[0].options.body.get('deviceSerial'), 'TEST00001')
+assert.equal(requests[0].options.redirect, 'error')
+reply.resolve({ json: async () => ({ code: '10026', msg: 'fixture-private' }) })
+await new Promise(resolve => setImmediate(resolve))
+assert.equal(lookup.calls.at(-1), '萤石账号设备数量超出个人版限制（10026）')
+assert.equal(JSON.parse(cameraLogText()).events.at(-1).code, 10026)
+await lookup.preview.close()
+reply = pending()
+await lookup.preview.open()
+sdkMessage('设备不在线')
+await lookup.preview.close()
+assert.ok(requests[1].options.signal.aborted)
+const closedLog = cameraLogText()
+reply.resolve({ json: async () => ({ code: 10026 }) })
+await new Promise(resolve => setImmediate(resolve))
+assert.equal(cameraLogText(), closedLog)
+
 const info = pending()
 const late = fixture({ getInfo: () => info.promise })
 const opening = late.preview.open()

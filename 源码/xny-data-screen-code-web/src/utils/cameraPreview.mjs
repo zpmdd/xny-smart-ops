@@ -52,6 +52,22 @@ function observeSdkMessage(id, notify) {
   return () => observer.disconnect()
 }
 
+async function deviceInfo(url, token, signal) {
+  const stream = new URL(url)
+  const serial = stream.pathname.split('/')[1]
+  if (stream.protocol !== 'ezopen:' || stream.hostname !== 'open.ys7.com' || !/^[A-Za-z0-9]{7,16}$/.test(serial)) return
+  const response = await fetch('https://open.ys7.com/api/lapp/device/info', {
+    method: 'POST', body: new URLSearchParams({ deviceSerial: serial, accessToken: token }),
+    signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer',
+  })
+  const result = await response.json()
+  const code = numericCode(result)
+  if (code === 10026) return { message: '萤石账号设备数量超出个人版限制', code }
+  if (code !== 200) return { message: '萤石设备状态查询失败', code }
+  if (result.data?.status === 0) return { message: '萤石设备离线，请检查供电和网络' }
+  if (result.data?.status === 1) return { message: '萤石设备在线，预览连接失败' }
+}
+
 export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, observeMessage = observeSdkMessage }) {
   let current = null
   let closing = null
@@ -87,12 +103,14 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, o
       session.disconnect = observeMessage(session.id, text => {
         if (current !== session) return
         let event, message
+        let missingDeviceStatus = false
         if (text.startsWith('设备不在线')) {
           const deviceStatus = session.player?.deviceInfo?.status
           if (deviceStatus === 0) {
             event = '萤石设备离线（status=0）'
             message = '设备不在线，请检查供电和网络'
           } else {
+            missingDeviceStatus = deviceStatus !== 1
             event = deviceStatus === 1 ? 'SDK 提示离线，萤石设备状态为在线' : 'SDK 提示离线，萤石设备状态未确认'
             message = event
           }
@@ -105,6 +123,18 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, o
         session.lastHint = event
         report(event)
         status(message)
+        // This SDK also renders “offline” when the device-info API rejects the account.
+        if (missingDeviceStatus && !session.lookup) {
+          session.lookup = new AbortController()
+          const timer = setTimeout(() => session.lookup.abort(), 5000)
+          deviceInfo(url, token, session.lookup.signal).then(result => {
+            if (current !== session || session.lastHint !== event || !result) return
+            report(result.message, result.code)
+            status(result.message + (result.code === undefined ? '' : '（' + result.code + '）'))
+          }).catch(() => {
+            if (current === session && session.lastHint === event) report('未取得萤石设备信息')
+          }).finally(() => clearTimeout(timer))
+        }
       })
       session.player = createPlayer({
         id: session.id, url, accessToken: token, template: 'pcLive', maxReloadTime: 0,
@@ -133,6 +163,7 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, o
     const session = current
     current = null // Ignore late API responses and callbacks from this particular instance.
     session.disconnect?.()
+    session.lookup?.abort()
     const report = (event, code) => record(session.id, event, code)
     report('关闭监控')
     if (!session.player) {
