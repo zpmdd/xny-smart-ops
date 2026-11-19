@@ -1,0 +1,12 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.xny.common.config.Knife4jConfig,\
+  com.xny.common.config.SnowflakeConfig,\
+  com.xny.common.utils.SnowIdUtil,\
+  com.xny.common.utils.RedisUtils,\
+  com.xny.common.config.XNYConfig,\
+  com.xny.common.utils.CustomSM2Utils
+
+
+
+
+

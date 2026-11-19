@@ -1,0 +1,15 @@
+# Default ignored files
+/shelf/
+/.idea/workspace.xml
+# Datasource local storage ignored files
+/../../../:\xny\.idea/dataSources/
+/dataSources.local.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+.idea
+logs
+xny-system/target
+xny-framework/target
+xny-common/target
+xny-generator/target
+jwwl-xny.iml

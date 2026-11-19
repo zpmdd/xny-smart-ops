@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.DataParamConfigMapper">
+    <select id="listDataParamConfig" parameterType="com.xny.system.model.dto.DataCountDTO"
+        resultType="com.xny.system.model.vo.DataCountVO">
+        SELECT
+            dpc.id,
+            dpc.param_id,
+            dpc.param_name,
+            dpc.param_value,
+            dpc.param_unit,
+            dpc.if_enable,
+	        su.user_name as updateName,
+            dpc.update_time
+        FROM data_param_config dpc
+        left join sys_user su on dpc.update_by = su.id
+        WHERE dpc.del_flag = 0 and dpc.data_type = 1 and dpc.if_hide = 0
+        <if test="null != projectId">
+            and dpc.project_id = #{projectId}
+        </if>
+        <if test="null != id">
+            and dpc.id = #{id}
+        </if>
+        <if test="null != startTime">
+            and dpc.update_time &gt;= #{startTime}
+        </if>
+        <if test="null != endTime">
+            and dpc.update_time &lt;= #{endTime}
+        </if>
+        <if test="null != idList and idList.size() > 0">
+            and dpc.id in
+            <foreach collection="idList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        order by dpc.id
+    </select>
+
+    <select id="listDataParamConfig2" parameterType="com.xny.system.model.dto.DataChartDTO"
+            resultType="com.xny.system.model.vo.DataChartVO">
+        SELECT
+            dpc.id,
+            dpc.param_name,
+            dpc.param_value,
+            dpc.param_key,
+            dpc.param_unit,
+            su.user_name as updateName,
+            dpc.update_time
+        FROM data_param_config dpc
+        left join sys_user su on dpc.update_by = su.id
+        WHERE dpc.del_flag = 0 and dpc.data_type = 2
+        <if test="null != projectId">
+            and dpc.project_id = #{projectId}
+        </if>
+        <if test="null != chartId">
+            and dpc.chart_id = #{chartId}
+        </if>
+        <if test="null != startTime">
+            and dpc.update_time &gt;= #{startTime}
+        </if>
+        <if test="null != endTime">
+            and dpc.update_time &lt;= #{endTime}
+        </if>
+        order by dpc.id
+    </select>
+
+    <select id="getConfigChartData" resultType="com.xny.system.model.vo.ChartDataVO"
+            parameterType="com.xny.system.model.dto.GetConfigChartDataDTO">
+        select
+            param_key as itemLable,
+            param_value as itemValue
+        from data_param_config
+        where del_flag = 0 and data_type =2 and if_enable =1
+        <if test="null != projectId">
+            and project_id = #{projectId}
+        </if>
+        <if test="null != chartId">
+            and chart_id = #{chartId}
+        </if>
+        order by id
+    </select>
+
+
+</mapper>

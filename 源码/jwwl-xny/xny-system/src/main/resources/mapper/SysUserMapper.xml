@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.SysUserMapper">
+    <select id="listUser" parameterType="com.xny.system.model.dto.ListUserDTO"
+        resultType="com.xny.system.model.vo.ListUserVO">
+        select 
+           su.id,
+           su.user_name,
+           su.account_number,
+           su.password,
+           su.sex,
+           su.position,
+           su.whether_block_up,
+           su.update_by,
+           su.update_time,
+           temp.user_name as updateName
+        from sys_user su
+        left join sys_user temp on su.update_by = temp.id
+        where su.del_flag = 0
+        <if test="nameOrAccount != null and nameOrAccount != ''">
+            and ( su.user_name like concat('%',#{nameOrAccount},'%') or
+                  su.account_number like concat('%',#{nameOrAccount},'%')
+            )
+        </if>
+        order by su.update_time desc
+    </select>
+
+    <select id="getPermsList" parameterType="com.xny.system.model.dto.PermsTreeDTO"
+            resultType="com.xny.system.model.vo.PermsTreeVO">
+        select 
+          sme.id,
+          sme.parent_id,
+          sme.menu_name,
+          sme.perms_flag,
+          sme.sort_num
+          <if test="null != userId">
+            ,if(
+                 (select count(id) from sys_user_menu
+                    where user_id = #{userId} and menu_id = sme.id and del_flag = 0
+                 ) > 0,
+                 true,false
+              ) as havePerm
+          </if>
+        from sys_menu sme
+        <if test="ifExist">
+            left join sys_user_menu sume on sume.menu_id = sme.id
+        </if>
+        where sme.del_flag = 0
+        <if test="ifExist">
+            and sume.user_id = #{userId} and sume.del_flag = 0
+        </if>
+    </select>
+
+</mapper>

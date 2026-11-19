@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.DataHfqxEquipmentMapper">
+    <select id="countEquipment" resultType="com.xny.system.model.vo.CountEquipmentVO">
+        select
+            count(device_number) as totalCount,
+            IFNULL(sum(case when offline_status = 1 then 1 else 0 end),0) as onlineCount,
+            IFNULL(sum(case when offline_status = 0 then 1 else 0 end),0) as offlineCount
+        from data_hfqx_equipment where del_flag = 0
+    </select>
+
+    <select id="listEquipment" parameterType="com.xny.system.model.dto.ListEquipmentDTO"
+        resultType="com.xny.system.model.vo.ListEquipmentVO">
+        select
+            device_number,
+            if(device_name = '西安研究所','1号清洗机器人',device_name) as device_name,
+            offline_days
+        from data_hfqx_equipment where del_flag = 0
+        <if test="null != offlineStatus">
+            and offline_status = #{offlineStatus}
+        </if>
+    </select>
+</mapper>

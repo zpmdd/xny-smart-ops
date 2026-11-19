@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.SysUserMenuMapper">
+    <select id="getProjectIdListHavePerms" parameterType="java.lang.Long" resultType="java.lang.Long">
+        select
+           sm.perms_flag
+        from sys_user_menu sum
+        left join sys_menu sm on sum.menu_id = sm.id
+        where sum.del_flag = 0 and sm.del_flag = 0 and sm.remarks = "project"
+        and sum.user_id = #{userId}
+    </select>
+</mapper>

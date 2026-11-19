@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.xny</groupId>
+    <artifactId>jwwl-xny</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0.0</version>
+    <modules>
+        <module>xny-common</module>
+        <module>xny-framework</module>
+        <module>xny-generator</module>
+        <module>xny-system</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>1.8</java.version>
+        <xny.version>1.0.0</xny.version>
+        <hutool.version>5.8.16</hutool.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- SpringBoot的依赖配置-->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>2.5.14</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.xny</groupId>
+                <artifactId>xny-system</artifactId>
+                <version>${xny.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.xny</groupId>
+                <artifactId>xny-common</artifactId>
+                <version>${xny.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.xny</groupId>
+                <artifactId>xny-framework</artifactId>
+                <version>${xny.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.xny</groupId>
+                <artifactId>xny-generator</artifactId>
+                <version>${xny.version}</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.5.1</version>
+                <configuration>
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
+
+                <!-- execution 重点一定要加 repackage-->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+        <resources>
+            <resource>
+                <!-- 指定文件路径 -->
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <!-- **表示任意级目录，*表示任意文件 -->
+                    <include>**/*</include>
+                </includes>
+            </resource>
+        </resources>
+
+    </build>
+
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <properties>
+                <profiles.active>dev</profiles.active>
+            </properties>
+            <activation>
+                <!-- 默认环境 -->
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+
+        <profile>
+            <id>beta</id>
+            <properties>
+                <profiles.active>beta</profiles.active>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>prod</id>
+            <properties>
+                <profiles.active>prod</profiles.active>
+            </properties>
+        </profile>
+
+    </profiles>
+
+</project>

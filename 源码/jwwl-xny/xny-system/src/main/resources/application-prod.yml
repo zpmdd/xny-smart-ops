@@ -1,0 +1,94 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /
+
+xny:
+  useSimulateData: false
+  historyDataBase: "${XNY_HISTORY_DB:xny_data_local}"
+  knife4j: true
+  tokenValidate: true
+  fileStorageDir: "${XNY_FILES_DIR:./var/files}"
+  fileTempDir: "${XNY_TEMP_DIR:./var/tmp}"
+
+
+spring:
+
+
+  shardingsphere:
+    datasource:
+      db0:
+        jdbcUrl: "${XNY_SYSTEM_JDBC_URL:jdbc:mysql://127.0.0.1:3306/xny_system_local?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false}"
+        username: "${XNY_DB_USER:xny_local}"
+        password: "${XNY_DB_PASSWORD:}"
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+      db1:
+        jdbcUrl: "${XNY_DATA_JDBC_URL:jdbc:mysql://127.0.0.1:3306/xny_data_local?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false}"
+        username: "${XNY_DB_USER:xny_local}"
+        password: "${XNY_DB_PASSWORD:}"
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+      names: db0,db1
+
+    sharding:
+      default-data-source-name: db0
+      tables:
+        data_param_history:
+          actual-data-nodes: db1.data_param_history_$->{2024..2034}$->{(1..12).collect{t ->t.toString().padLeft(2,'0')}}$->{(1..31).collect{t ->t.toString().padLeft(2,'0')}}
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+          table-strategy:
+            standard:
+              sharding-column: param_time
+              precise-algorithm-class-name: com.xny.system.sharding.DayShardingAlgorithm
+              range-algorithm-class-name: com.xny.system.sharding.DayShardingAlgorithm
+
+    props:
+      sql:
+        show: false
+
+  redis:
+    database: "${XNY_REDIS_DATABASE:0}"
+    host: "${XNY_REDIS_HOST:127.0.0.1}"
+    port: "${XNY_REDIS_PORT:6379}"
+    timeout: 10s
+    lettuce:
+      pool:
+        max-active: 200
+        max-wait: -1ms
+        max-idle: 10
+        min-idle: 0
+
+ykcconfig:
+  ykcUrl: "${XNY_YKC_URL:}"
+
+  ykcOperatorID: "${XNY_YKC_OPERATOR_ID:}"
+  ykcOperatorSecret: "${XNY_YKC_OPERATOR_SECRET:}"
+  ykcSigSecret: "${XNY_YKC_SIG_SECRET:}"
+  ykcDataSecret: "${XNY_YKC_DATA_SECRET:}"
+  ykcDataSecretIV: "${XNY_YKC_DATA_SECRET_IV:}"
+
+  znOperatorID: "${XNY_ZN_OPERATOR_ID:}"
+  znOperatorSecret: "${XNY_ZN_OPERATOR_SECRET:}"
+  znSigSecret: "${XNY_ZN_SIG_SECRET:}"
+  znDataSecret: "${XNY_ZN_DATA_SECRET:}"
+  znDataSecretIV: "${XNY_ZN_DATA_SECRET_IV:}"
+
+hfqxconfig:
+  hfqxUrl: "${XNY_HFQX_URL:}"
+  AppKey: "${XNY_HFQX_APP_KEY:}"
+  LoginName: "${XNY_HFQX_LOGIN_NAME:}"
+  LoginPassword: "${XNY_HFQX_LOGIN_PASSWORD:}"
+
+qdconfig:
+  qdUrl: "${XNY_QD_URL:}"
+  platform: "${XNY_QD_PLATFORM:}"
+  platformSecret: "${XNY_QD_PLATFORM_SECRET:}"
+
+ysconfig:
+  ysUrl: "${XNY_YS_URL:}"
+  appKey: "${XNY_YS_APP_KEY:}"
+  secret: "${XNY_YS_SECRET:}"
+  deviceSerial: "${XNY_YS_DEVICE_SERIAL:}"

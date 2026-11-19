@@ -1,0 +1,52 @@
+spring:
+  profiles:
+    active: @profiles.active@
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 250MB
+      max-request-size: 300MB
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*Mapper.xml
+  configuration:
+    call-setters-on-nulls: true
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      insert-strategy: not_null
+      update-strategy: not_null
+
+pagehelper:
+  helperDialect: mysql
+  reasonable: true
+  supportMethodsArguments: false
+  params: count=countSql
+
+logging:
+  level:
+    com.xny: debug
+
+sa-token:
+  token-name: xny-token
+  timeout: 57600
+  activity-timeout: 3600
+  is-concurrent: true
+  is-share: false
+  token-style: simple-uuid
+  is-log: false
+  isReadHeader: true
+  isReadCookie: false
+
+third-party:
+  weather:
+    timeout: 300
+    cma-url: "${XNY_CMA_URL:}"
+    xian: V8870
+    yanan: 53845
+  tide:
+    timeout: 21600
+    nmi-url: "${XNY_NMI_URL:}"
+    tideLocation: T098
+    velocityOfFlowLocation: GNXZ022
+

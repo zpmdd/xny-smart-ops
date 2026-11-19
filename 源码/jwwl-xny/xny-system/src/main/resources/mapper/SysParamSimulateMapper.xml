@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.SysParamSimulateMapper">
+
+    <select id="listDataLogInfo" resultType="com.xny.system.model.vo.DataSyncVO"
+            parameterType="com.xny.system.model.dto.YznDataLogDTO">
+        select
+        sd.yzn_device_id,
+        sdp.yzn_param_id
+        from sys_device sd
+        left join sys_param_simulate sps on sd.id = sps.device_id
+        where sd.yzn_device_id is not null and sps.yzn_param_id is not null
+        and sd.del_flag = 0 and sps.del_flag = 0
+        <if test="paramList != null and paramList.size > 0">
+            and
+            <foreach collection="paramList" item="item" separator="or" open="(" close=")" >
+                ( sps.device_id = #{item.deviceId} and sps.param_id = #{item.paramId} )
+            </foreach>
+        </if>
+    </select>
+
+    <select id="listRealTimeDataInfo" resultType="com.xny.system.model.vo.DataSyncVO"
+            parameterType="com.xny.system.model.dto.RealTimeDataDTO">
+        select
+        sps.device_id,
+        sps.param_id,
+        sd.yzn_device_id,
+        sd.yzn_channel_id,
+        sd.yzn_station_id,
+        sps.yzn_measure_id,
+        sps.yzn_param_id,
+        sps.param_base_value,
+        sps.param_upper_limit,
+        sps.param_lower_limit,
+        sps.param_normal_value
+        from sys_device sd
+        left join sys_param_simulate sps on sd.id = sps.device_id
+        where sd.del_flag = 0 and sps.del_flag = 0
+        <if test="null != ifDev and ifDev">
+            and if(sps.device_id = 9,sps.param_base_value is not null,true)
+        </if>
+        <if test="paramList != null and paramList.size > 0">
+            and
+            <foreach collection="paramList" item="item" separator="or" open="(" close=")" >
+                ( sps.device_id = #{item.deviceId} and sps.param_id = #{item.paramId} )
+            </foreach>
+        </if>
+        <if test="null != measureIdIfNull and measureIdIfNull">
+            and sps.yzn_measure_id is null and sps.param_base_value is not null
+        </if>
+        <if test="null != measureIdIfNull and !measureIdIfNull">
+            and sps.yzn_measure_id is not null
+        </if>
+        <if test="null != yznParamIdIfNull and !yznParamIdIfNull">
+            and sps.yzn_param_id is not null
+        </if>
+        <if test="null != yznParamIdIfNull and yznParamIdIfNull">
+            and sps.yzn_param_id is null and sps.param_base_value is not null
+        </if>
+        <if test="dataSourceList != null and dataSourceList.size > 0">
+            and sps.data_source in
+            <foreach collection="dataSourceList" item="item" separator="," open="(" close=")" >
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+
+    <insert id="realTimeBatchInsertOrUpdate" parameterType="java.util.List">
+        INSERT INTO data_device_real_time (id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value=VALUES(param_value),
+        param_time=VALUES(param_time),
+        update_time = NOW()
+    </insert>
+
+    <insert id="realTimeBatchInsertOrUpdateAccrual" parameterType="java.util.List">
+        INSERT INTO data_device_real_time (id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value= param_value + VALUES(param_value),
+        param_time=VALUES(param_time),
+        update_time = NOW()
+    </insert>
+
+    <insert id="hourBatchInsertOrUpdate" parameterType="java.util.List">
+        INSERT INTO data_device_hour (id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value=VALUES(param_value),
+        update_time = NOW()
+    </insert>
+
+    <insert id="dayBatchInsertOrUpdateAccrual" parameterType="java.util.List">
+        INSERT INTO data_device_day(id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value = param_value + VALUES(param_value),
+        update_time = NOW()
+    </insert>
+
+    <insert id="monthBatchInsertOrUpdate" parameterType="java.util.List">
+        INSERT INTO data_device_month (id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value=VALUES(param_value),
+        update_time = NOW()
+    </insert>
+
+    <insert id="historyBatchInsertOrUpdate" parameterType="java.util.List">
+        INSERT INTO data_param_history (id, device_id, param_id, param_value, param_time,create_time) VALUES
+        <foreach collection="list" item="item" separator="," >
+            (#{item.id}, #{item.deviceId}, #{item.paramId}, #{item.paramValue}, #{item.paramTime},NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        param_value=VALUES(param_value),
+        update_time = NOW()
+    </insert>
+
+    <update id="updateAlarmCount" parameterType="com.xny.system.model.dto.UpdateAlarmCountDTO">
+        update data_device_real_time
+        <if test="type == 1">
+            set param_value = #{alramCount}
+        </if>
+        <if test="type == 2">
+            set param_value = param_value + #{alramCount}
+        </if>
+        where device_id = #{deviceId} and param_id = #{paramId}
+    </update>
+
+    <select id="listParamSimulate" parameterType="com.xny.system.model.dto.ListParamSimulateDTO"
+        resultType="com.xny.system.model.vo.ListParamSimulateVO">
+        select
+            sps.device_id,
+            sps.param_id,
+            sn.data_code
+        from sys_param_simulate sps
+        inner join sys_nanrui sn on sps.id = sn.id
+        where sps.del_flag = 0
+        and sn.submatrix_section = #{submatrixSection}
+        and sn.data_code in
+        <foreach collection="dataCodeList" item="item" index="index" separator="," open="(" close=")" >
+            #{item}
+        </foreach>
+        and sps.device_id is not null
+    </select>
+
+</mapper>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.DataAnalysisMapper">
+    <select id="projectDataCount" resultType="com.xny.system.model.vo.ProjectDataCountVO"
+        parameterType="com.xny.system.model.dto.MapDataCountDTO">
+        select
+            sp.project_type_id,
+            sp.project_type_name,
+            spa.param_name,
+            ddt.param_id,
+            if(dpc.id is null,1,0) as ifConfig,
+            <choose>
+                <when test="null != projectIds and projectIds != ''">
+                    if(dpc.id is null,IFNULL(sum(case when sp.id in (${projectIds}) then ddt.param_value else 0 end ),0),dpc.param_value) as totalValue
+                </when>
+                <otherwise>
+                    0 as totalValue
+                </otherwise>
+            </choose>
+        from  data_device_real_time ddt
+        left join sys_device sd on ddt.device_id = sd.id
+        left join sys_project sp on sp.id = sd.project_id
+        left join sys_param spa on spa.id = ddt.param_id
+        left join data_param_config dpc on dpc.project_id = sp.id and dpc.del_flag = 0 and dpc.if_enable = 1 and dpc.data_type = 1 and dpc.param_id = spa.id
+        where ddt.del_flag = 0 and sd.del_flag = 0 and sp.del_flag = 0 and spa.del_flag = 0
+        <if test="provinceCode != null and provinceCode != ''">
+            and sp.province_code = #{provinceCode}
+        </if>
+        <if test="projectTypeId != null">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddt.param_id = #{paramId}
+        </if>
+        <if test="null != paramIdList">
+            and ddt.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != projectTypeIdList">
+            and sp.project_type_id in
+            <foreach collection="projectTypeIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        and if(sp.project_type_id = 2 and ddt.param_id in (110004,110003,110041,100001),ddt.device_id = 12,true)
+        group by ddt.param_id,sp.project_type_id
+    </select>
+
+    <select id="projectNumber" resultType="com.xny.system.model.vo.ProjectNumberVO"
+            parameterType="com.xny.system.model.dto.MapDataCountDTO">
+        select
+            sp.project_type_name,
+            <choose>
+               <when test="null != projectIds and projectIds != ''">
+                   sum(case when sp.id not in (3,4,5) and sp.id in (${projectIds}) then 1 else 0 end) as totalCount
+               </when>
+               <otherwise>
+                   0 as totalCount
+               </otherwise>
+            </choose>
+        from sys_project sp
+        where sp.del_flag = 0
+        <if test="provinceCode != null and provinceCode != ''">
+            and sp.province_code = #{provinceCode}
+        </if>
+        <if test="projectTypeId != null">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        group by sp.project_type_id
+    </select>
+
+    <select id="projectDimension" parameterType="java.lang.String" resultType="java.lang.String">
+        select
+            GROUP_CONCAT(project_name)
+        from sys_project
+        where del_flag = 0
+        and FIND_IN_SET(id,#{ids})
+    </select>
+</mapper>

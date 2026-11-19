@@ -1,0 +1,13 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.xny.framework.exception.GlobalExceptionHandler,\
+  com.xny.framework.aop.WebLogAspect,\
+  com.xny.framework.config.WebConfig,\
+  com.xny.framework.config.JacksonConfig,\
+  com.xny.framework.config.MyMetaObjectHandler,\
+  com.xny.framework.des.DecryptRequestBodyAdvice,\
+  com.xny.framework.des.EncryptResponseBodyAdvice
+
+
+
+
+

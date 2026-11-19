@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xny.system.mapper.SysDeviceMapper">
+    <select id="listDeviceByPojectType" parameterType="com.xny.system.model.dto.ListDeviceDTO"
+            resultType="com.xny.system.model.vo.ListDeviceVO">
+        select
+            sd.id,
+            sd.device_name,
+            sd.place,
+            ddt.param_value
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_real_time ddt on sd.id = ddt.device_id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddt.del_flag = 0
+
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+
+        <if test="null != paramId">
+            and ddt.param_id = #{paramId}
+        </if>
+        order by sd.id
+    </select>
+
+    <select id="ruleParam" parameterType="com.xny.system.model.dto.ListDeviceDTO"
+            resultType="com.xny.system.model.vo.RuleParamVO">
+        select
+            ddt.param_time,
+            spa.param_unit,
+            spa.param_name,
+            spa.id as paramId,
+            if(dpc.id is null,1,0) as ifConfig,
+            if(sps.param_normal_value is null,-1,sps.param_normal_value = ddt.param_value) as statusParamValue,
+            <choose>
+                <when test="null != projectIds and projectIds != ''">
+                    if(dpc.id is null,IFNULL(sum(case when sp.id IN (${projectIds}) then ddt.param_value else 0 end),0),dpc.param_value) AS paramValue
+                </when>
+                <when test="null == projectIds">
+                    if(dpc.id is null,IFNULL(sum(ddt.param_value),0),dpc.param_value) as paramValue
+                </when>
+                <otherwise>
+                    0 as paramValue
+                </otherwise>
+            </choose>
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_real_time ddt on sd.id = ddt.device_id
+        left join sys_param spa on spa.id = ddt.param_id
+        left join sys_param_simulate sps on sps.param_id = ddt.param_id and sps.device_id = ddt.device_id and sps.del_flag = 0
+        left join data_param_config dpc on dpc.project_id = sp.id and dpc.del_flag = 0 and dpc.if_enable = 1 and dpc.data_type = 1 and dpc.param_id = spa.id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddt.del_flag = 0 and spa.del_flag = 0
+
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+
+        <if test="null != paramIdList">
+            and ddt.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+
+        <if test="null != deviceIdList">
+            and ddt.device_id in
+            <foreach collection="deviceIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+
+        <if test="null != projectTypeIdList">
+            and sp.project_type_id in
+            <foreach collection="projectTypeIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+
+        group by ddt.param_id
+        ORDER BY FIELD(ddt.param_id ,${paramIds})
+    </select>
+
+    <select id="listHourData" parameterType="com.xny.system.model.dto.ChartDataDTO"
+        resultType="com.xny.system.model.vo.ChartDataVO">
+        select
+            IFNULL(sum(ddh.param_value),0) as itemValue,
+            DATE_FORMAT(ddh.param_time, '%H:%i') itemLable
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_hour ddh on sd.id = ddh.device_id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddh.del_flag = 0
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddh.param_id = #{paramId}
+        </if>
+        <if test="null != paramIdList">
+            and ddh.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != deviceIdList">
+            and ddh.device_id in
+            <foreach collection="deviceIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != paramTime and paramTime != ''">
+            and DATE_FORMAT(ddh.param_time, '%Y-%m-%d') = #{paramTime}
+        </if>
+        group by ddh.param_time
+        order by ddh.param_time asc
+    </select>
+
+    <select id="listDayData" parameterType="com.xny.system.model.dto.ChartDataDTO"
+            resultType="com.xny.system.model.vo.ChartDataVO">
+        select
+        IFNULL(sum(ddh.param_value),0) as itemValue,
+        DATE_FORMAT(ddh.param_time, '%Y-%m-%d') itemLable
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_day ddh on sd.id = ddh.device_id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddh.del_flag = 0
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddh.param_id = #{paramId}
+        </if>
+        <if test="null != paramIdList">
+            and ddh.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != deviceIdList">
+            and ddh.device_id in
+            <foreach collection="deviceIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != paramTime and paramTime != ''">
+            and DATE_FORMAT(ddh.param_time, '%Y-%m-%d') = #{paramTime}
+        </if>
+        group by ddh.param_time
+        order by ddh.param_time desc limit 7
+    </select>
+
+    <select id="listBenYueData" parameterType="com.xny.system.model.dto.ChartDataDTO"
+            resultType="com.xny.system.model.vo.ChartDataVO">
+        select
+            IFNULL(max(ddh.param_value),0) as itemValue,
+            DATE_FORMAT(ddh.param_time, '%Y-%m-%d') itemLable
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_hour ddh on sd.id = ddh.device_id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddh.del_flag = 0
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddh.param_id = #{paramId}
+        </if>
+        <if test="null != paramIdList">
+            and ddh.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != deviceIdList">
+            and ddh.device_id in
+            <foreach collection="deviceIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != paramTime and paramTime != ''">
+            and DATE_FORMAT(ddh.param_time, '%Y-%m') = #{paramTime}
+        </if>
+        group by itemLable
+        order by itemLable asc
+    </select>
+
+    <select id="listMonthData" parameterType="com.xny.system.model.dto.ChartDataDTO"
+            resultType="com.xny.system.model.vo.ChartDataVO">
+        select
+            IFNULL(sum(ddm.param_value),0) as itemValue,
+            DATE_FORMAT(ddm.param_time, '%Y-%m') itemLable
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_month ddm on sd.id = ddm.device_id
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddm.del_flag = 0
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddm.param_id = #{paramId}
+        </if>
+        <if test="null != paramIdList">
+            and ddm.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != deviceIdList">
+            and ddm.device_id in
+            <foreach collection="deviceIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="null != paramTime and paramTime != ''">
+            and DATE_FORMAT(ddm.param_time, '%Y') = CONVERT(#{paramTime}, SIGNED)
+        </if>
+        group by itemLable
+        order by itemLable desc
+        limit #{limitStart},#{limitEnd}
+    </select>
+
+    <select id="listRealTimeData" parameterType="com.xny.system.model.dto.ChartDataDTO"
+            resultType="com.xny.system.model.vo.ListRealTimeDataVO">
+        select
+            sd.id as device_id,
+            sd.device_name,
+            sd.remarks as deviceRemark,
+            sd.place,
+            ddt.param_id,
+            spa.param_name,
+            spa.param_unit,
+            ddt.param_value,
+            if(sps.param_normal_value is null,-1,sps.param_normal_value = ddt.param_value) as statusParamValue
+        from sys_device sd
+        left join sys_project sp on sd.project_id = sp.id
+        left join data_device_real_time ddt on sd.id = ddt.device_id
+        left join sys_param spa on spa.id = ddt.param_id
+        left join sys_param_simulate sps on sps.param_id = ddt.param_id and sps.device_id = ddt.device_id and sps.del_flag = 0
+        where sd.del_flag = 0 and sp.del_flag = 0 and ddt.del_flag = 0 and spa.del_flag = 0
+        <if test="null != projectTypeId">
+            and sp.project_type_id = #{projectTypeId}
+        </if>
+        <if test="null != paramId">
+            and ddt.param_id = #{paramId}
+        </if>
+        <if test="null != deviceId">
+            and sd.id = #{deviceId}
+        </if>
+        <if test="null != paramIdList">
+            and ddt.param_id in
+            <foreach collection="paramIdList" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        <if test="excludeCustomParam">
+            and ddt.param_id &gt; 110000
+        </if>
+        <if test="null != submatrix and submatrix != ''">
+            and sd.remarks = #{submatrix}
+        </if>
+    </select>
+</mapper>
