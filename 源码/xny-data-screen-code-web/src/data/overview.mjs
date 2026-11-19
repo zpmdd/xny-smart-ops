@@ -17,6 +17,22 @@ export const projects = [
   { id: 4, type: 4, projectName: '西安光储充一体化项目', city: '西安市', path: '/cdxm' },
 ]
 
+// shortcut: 客户核定值随构建提供，恢复数据采集后移除此配置。
+function configuredStationTotals() {
+  const fields = [
+    'generation', 'revenue', 'month', 'monthRevenue', 'year', 'yearRevenue',
+    'safetyDays', 'annualHours', 'co2Reduction', 'coalSavings',
+  ]
+  try {
+    const totals = JSON.parse(process.env.VUE_APP_WEIJIAZHUANG_TOTALS || 'null')
+    if (!totals || !fields.every(key => Number.isFinite(totals[key]) && totals[key] >= 0)) return {}
+    return Object.fromEntries(fields.map(key => [key, totals[key]]))
+  } catch {
+    return {}
+  }
+}
+const stationTotals = configuredStationTotals()
+
 // 参考日零点的期初量。电量为万 kWh，容量为 MW，收益为万元。
 const anchor = Date.parse('2026-11-19T00:00:00+08:00')
 const dayMs = 86400000
@@ -78,10 +94,10 @@ function generationMetric(sites, label, unit, select) {
   const childs = [1, 2, 5].map(type => metric(projectTypes[type - 1], sum(sites.filter(p => p.type === type).map(select))))
   return { label, unit, value: sum(childs.map(item => item.value)), childs }
 }
-function benefits(generation) {
+function benefits(sites) {
   return group('社会效益', [
-    metric('CO₂减排', round(generation * 0.000997), '万吨'),
-    metric('标煤节约', round(generation * 0.00036), '万吨'),
+    metric('CO₂减排', sum(sites.map(site => site.co2Reduction ?? site.generation * 0.000997)), '万吨'),
+    metric('标煤节约', sum(sites.map(site => site.coalSavings ?? site.generation * 0.00036)), '万吨'),
   ])
 }
 export function titleText({ label, unit, value }) {
@@ -100,13 +116,14 @@ function makeOverview(sites, day) {
     devOpsData: group('运维管理', [metric('安全生产', 1269 + day, '天'),
       metric('安全发电', round(energy.value * 10 / capacity.value), '小时'), metric('安全设备数量', 477, '台'), metric('设备完好率', '100%')]),
     runStatus: group('运行状况分析', [metric('正常运行设备数', 477, '台'), metric('异常设备数', 0, '台')]),
-    socialBenefit: benefits(energy.value),
+    socialBenefit: benefits(sites),
   }
 }
 function stationData(site, clock) {
   const { day, seconds } = clock
   const periods = ['累计', '今日', '本月', '本年']
   const totals = [site.generation, site.day, site.month, site.year]
+  const revenues = [stationTotals.revenue, undefined, site.monthRevenue, site.yearRevenue]
   const powerPoints = Array.from({ length: 31 }, (_, i) => {
     const t = seconds - (30 - i) * 60
     const s = (t + 86400) % 86400
@@ -123,13 +140,14 @@ function stationData(site, clock) {
   return {
     power: site.power,
     fdData: group('数据一览', totals.map((v, i) => metric(periods[i] + '发电量', v, '万kWh'))),
-    syData: group('收益', totals.map((v, i) => metric(periods[i] + '收益', round(v * tariff), '万元'))),
+    syData: group('收益', totals.map((v, i) => metric(periods[i] + '收益', revenues[i] ?? round(v * tariff), '万元'))),
     otherData: group('容量', [metric('总装机容量', site.capacity, 'MW'), metric('集控接入容量', site.capacity / 10, '万kW')]),
     envData: group('今日环境数据', [metric('湿度', round(52 - 7 * temperature + breeze), '%'), metric('气压', round(944 + 1.4 * breeze), 'hPa'),
       metric('环境温度', round(8 + 6 * temperature + breeze / 4), '℃'), metric('风速', round(2.4 + 0.7 * breeze), 'm/s'), metric('风向', Math.round(61 + 12 * breeze), '°')]),
-    devOpsData: group('运维数据', [metric('安全生产', 92 + day, '天'), metric('年利用小时', round(site.year * 10 / site.capacity), '小时'),
+    devOpsData: group('运维数据', [metric('安全生产', site.safetyDays ?? (92 + day), '天'),
+      metric('年利用小时', site.annualHours?.toFixed(2) ?? round(site.year * 10 / site.capacity), '小时'),
       metric('设备完好率', '100%'), metric('今日告警数量', 0, '次')]),
-    socialBenefit: benefits(site.generation),
+    socialBenefit: benefits([site]),
     powerChart: group('近30分钟有功功率', [{ label: '总有功功率', unit: 'MW', childs: powerPoints }]),
     energyChart: group('近七日发电量', [{ label: '日发电量', unit: '万kWh', childs: weekPoints }]),
   }
@@ -138,5 +156,6 @@ export function readSnapshot(now = Date.now()) {
   const clock = calendar(now)
   const sun = solarAt(clock.seconds)
   const sites = opening.map(site => reading(site, clock, sun))
+  Object.assign(sites[2], stationTotals)
   return { overview: makeOverview(sites, clock.day), station: stationData(sites[2], clock) }
 }

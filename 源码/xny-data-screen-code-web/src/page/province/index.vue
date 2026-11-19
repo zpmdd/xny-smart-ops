@@ -9,10 +9,8 @@
         <img class="marker-art" alt="" :src="projectIcons.provinceMapIcon[item.type]" />
         <div class="mask">
           <button type="button" class="marker-button" :aria-label="item.city + ' · ' + item.projectName"
-            :title="item.projectName" :aria-expanded="currentActive === item.id"
-            @click.stop="currentActive = currentActive === item.id ? null : item.id">
-            <span v-if="item.id === 'weijiazhuang'" class="marker-name">{{ item.projectName }}</span>
-          </button>
+            :title="item.id === 'weijiazhuang' ? null : item.projectName" :aria-expanded="currentActive === item.id"
+            @click.stop="currentActive = currentActive === item.id ? null : item.id"></button>
           <div class="popover" v-if="currentActive === item.id" @click.stop>
             <div class="close"><button type="button" aria-label="关闭项目详情" @click="currentActive = null">×</button></div>
             <div class="label"><span>{{ projectTypes[item.type - 1] }}</span></div>
@@ -22,8 +20,6 @@
               <div class="tel"><div>联系方式</div><div>{{ item.extension }}</div></div>
             </template>
             <div class="address"><div>项目地址</div><div>陕西省{{ item.city }}</div></div>
-            <div v-if="item.id === 'weijiazhuang'" class="director"><div>装机容量</div><div>{{ item.capacity }} MW</div></div>
-            <div v-if="item.id === 'weijiazhuang'" class="director"><div>运行状态</div><div>正常运行</div></div>
             <router-link v-if="item.id === 'weijiazhuang' || item.permitted"
               class="detail-btn" :to="item.id === 'weijiazhuang' ? item.path : { path: item.path, query: { id: item.id, projectName: item.projectName } }">查看详情</router-link>
           </div>
@@ -298,18 +294,6 @@ export default {
     .mask {
       margin: 25px 0 0 33px;
       .popover { left: -275px; bottom: 10px; }
-    }
-    .marker-name {
-      position: absolute;
-      right: 100%;
-      top: 18px;
-      white-space: nowrap;
-      color: #d7f9ff;
-      background: #0b263f;
-      border: 1px solid #4da6bd;
-      border-radius: 4px;
-      padding: 4px 12px;
-      font-size: 17px;
     }
   }
   .pu_sx08 {
