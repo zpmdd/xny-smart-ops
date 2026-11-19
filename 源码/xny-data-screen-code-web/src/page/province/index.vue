@@ -11,7 +11,7 @@
           <button type="button" class="marker-button" :aria-label="item.city + ' · ' + item.projectName"
             :title="item.projectName" :aria-expanded="currentActive === item.id"
             @click.stop="currentActive = currentActive === item.id ? null : item.id">
-            <span v-if="item.id === 'weijiazhuang'" class="marker-name">韦家庄光伏</span>
+            <span v-if="item.id === 'weijiazhuang'" class="marker-name">{{ item.projectName }}</span>
           </button>
           <div class="popover" v-if="currentActive === item.id" @click.stop>
             <div class="close"><button type="button" aria-label="关闭项目详情" @click="currentActive = null">×</button></div>

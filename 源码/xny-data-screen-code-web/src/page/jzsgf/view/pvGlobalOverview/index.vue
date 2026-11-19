@@ -4,8 +4,10 @@
     <template v-if="weijiazhuang">
       <router-link to="/province" class="overview-back">‹ 返回陕西省</router-link>
       <div class="station-heading">
-        <h1>韦家庄光伏</h1>
-        <p>陕西省宝鸡市 · 集中式光伏</p>
+        <h1>{{ station.projectName }}</h1>
+        <p>项目地址　陕西省{{ station.city }} · 集中式光伏</p>
+        <p v-if="station.contact">负责人　{{ station.contact }}</p>
+        <p v-if="station.extension">联系方式　{{ station.extension }}</p>
         <p>实时有功功率　<strong>{{ power }} MW</strong></p>
       </div>
     </template>
@@ -92,14 +94,14 @@
 </template>
 <script>
 import icons from '@/utils/icons.js'
-import { readSnapshot } from '@/data/overview.mjs'
+import { readSnapshot, weijiazhuangStation } from '@/data/overview.mjs'
 
 export default {
   name: 'jzsgfPvGlobalOverview',
   props: { weijiazhuang: Boolean, fetchOverview: Function },
   data() {
     return {
-      projectIcons: icons, power: 0,
+      projectIcons: icons, station: weijiazhuangStation, power: 0,
       fdData: {}, syData: {}, envData: {}, otherData: {}, devOpsData: {}, socialBenefit: {},
       chart1Data: {}, chart3Data: {},
     }

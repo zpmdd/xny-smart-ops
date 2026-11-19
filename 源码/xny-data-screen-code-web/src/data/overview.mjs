@@ -4,10 +4,15 @@ const group = (label, childs) => ({ label, childs })
 const sum = values => round(values.reduce((total, value) => total + value, 0))
 
 export const projectTypes = ['分布式光伏', '集中式光伏', '储能项目', '充电项目', '风电项目']
+export const weijiazhuangStation = {
+  id: 'weijiazhuang', type: 2, projectName: '韦家庄光伏电站', city: '宝鸡市', path: '/weijiazhuang', capacity: 100,
+  contact: process.env.VUE_APP_WEIJIAZHUANG_CONTACT || '',
+  extension: process.env.VUE_APP_WEIJIAZHUANG_PHONE || '',
+}
 export const projects = [
   { id: 1, type: 1, projectName: '西安光储充一体化项目', city: '西安市', path: '/fbsgf', capacity: 0.41 },
   { id: 2, type: 2, projectName: '延安光伏电站', city: '延安市', path: '/jzsgf', capacity: 100 },
-  { id: 'weijiazhuang', type: 2, projectName: '韦家庄光伏', city: '宝鸡市', path: '/weijiazhuang', capacity: 100 },
+  weijiazhuangStation,
   { id: 3, type: 3, projectName: '西安光储充一体化项目', city: '西安市', path: '/cnxm' },
   { id: 4, type: 4, projectName: '西安光储充一体化项目', city: '西安市', path: '/cdxm' },
 ]

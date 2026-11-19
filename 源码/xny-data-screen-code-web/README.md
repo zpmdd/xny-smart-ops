@@ -87,4 +87,6 @@ npm run build:test
 
 使用 Node 16 运行 `node tests/overview.mjs` 校验电量、功率和跨日结算。`npm run build:overview` 生成可单独用静态 HTTP 服务打开的三页版本。`npm run build:prod` 使用原系统登录和权限。现场航拍图由维护方放在 `src/assets/private/weijiazhuang.jpg`，开发副本缺少该文件时沿用原光伏背景。
 
+韦家庄项目简介的负责人和联系电话分别通过本地构建变量 `VUE_APP_WEIJIAZHUANG_CONTACT` 和 `VUE_APP_WEIJIAZHUANG_PHONE` 提供。
+
 维护已有站点时，先保存线上原始大屏目录。运行 `python3 scripts/compose-screen-release.py 原始大屏目录 dist 新目录`，三个目标页及共用的集中式光伏总览使用同一构建，原场站继续读取原接口，其余路由继续加载原有资源。后续重复发布仍以留存的原始 Vue CLI 入口作为第一个参数。
