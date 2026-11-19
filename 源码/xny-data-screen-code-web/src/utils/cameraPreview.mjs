@@ -46,7 +46,7 @@ function observeSdkMessage(id, notify) {
   const host = document.getElementById(id).parentElement
   const observer = new MutationObserver(() => {
     const hint = document.getElementById(id + '-loading-item-txt')
-    if (hint && host.contains(hint)) notify(hint.textContent)
+    if (hint && host.contains(hint)) notify(hint.textContent, hint)
   })
   observer.observe(host, { childList: true, characterData: true, subtree: true })
   return () => observer.disconnect()
@@ -100,7 +100,7 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, o
       if (current !== session) return
       status('正在连接摄像头')
       report('初始化播放器')
-      session.disconnect = observeMessage(session.id, text => {
+      session.disconnect = observeMessage(session.id, (text, hint) => {
         if (current !== session) return
         let event, message
         let missingDeviceStatus = false
@@ -130,7 +130,9 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, o
           deviceInfo(url, token, session.lookup.signal).then(result => {
             if (current !== session || session.lastHint !== event || !result) return
             report(result.message, result.code)
-            status(result.message + (result.code === undefined ? '' : '（' + result.code + '）'))
+            const label = result.message + (result.code === undefined ? '' : '（' + result.code + '）')
+            status(label)
+            if (result.code === 10026 && hint?.isConnected && hint.textContent === text) hint.textContent = label
           }).catch(() => {
             if (current === session && session.lastHint === event) report('未取得萤石设备信息')
           }).finally(() => clearTimeout(timer))

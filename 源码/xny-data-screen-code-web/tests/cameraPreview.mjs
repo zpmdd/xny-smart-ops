@@ -85,7 +85,8 @@ const lookup = fixture({
   observeMessage(id, notify) { sdkMessage = notify; return () => {} },
 })
 await lookup.preview.open()
-sdkMessage('设备不在线')
+const quotaHint = { isConnected: true, textContent: '设备不在线' }
+sdkMessage(quotaHint.textContent, quotaHint)
 sdkMessage('设备不在线')
 assert.equal(requests.length, 1)
 assert.equal(requests[0].url, 'https://open.ys7.com/api/lapp/device/info')
@@ -94,6 +95,7 @@ assert.equal(requests[0].options.redirect, 'error')
 reply.resolve({ json: async () => ({ code: '10026', msg: 'fixture-private' }) })
 await new Promise(resolve => setImmediate(resolve))
 assert.equal(lookup.calls.at(-1), '萤石账号设备数量超出个人版限制（10026）')
+assert.equal(quotaHint.textContent, lookup.calls.at(-1))
 assert.equal(JSON.parse(cameraLogText()).events.at(-1).code, 10026)
 await lookup.preview.close()
 reply = pending()
