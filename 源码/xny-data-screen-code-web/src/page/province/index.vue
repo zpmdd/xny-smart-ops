@@ -1,32 +1,31 @@
 <template>
-  <div class="province view">
-    <Side></Side>
+  <div class="province view overview-screen" @click="currentActive = null" @keydown.esc="currentActive = null">
+    <ScreenSide v-if="!$route.meta.standalone" />
     <MyHeader></MyHeader>
+    <router-link class="overview-back" to="/country">‹ 返回主页面</router-link>
     <div class="view-container">
-      <div class="tip-icon" :class="iconName(item)" v-for="(item, index) in mapTip" :key="index" :style="{ 'background-image': 'url(' + projectIcons.provinceMapIcon[item.projectTypeId] + ')' }">
-        <div class="mask" @click.stop="handleTip(item)">
-          <div class="popover" v-if="popoverShow && currentActive == item.id">
-            <div class="close"><i class="el-icon-close" @click.stop="popoverShow = false"></i></div>
-            <div class="label">
-              <span>{{ item.projectTypeName || '' }}</span>
-            </div>
-            <div class="typeName">
-              <div>项目名称</div>
-              <div>{{ item.projectName || '' }}</div>
-            </div>
-            <div class="director">
-              <div>负责人</div>
-              <div>{{ item.headName || '' }}</div>
-            </div>
-            <div class="tel">
-              <div>联系方式</div>
-              <div>{{ item.contactInfo || '' }}</div>
-            </div>
-            <div class="address">
-              <div>项目地址</div>
-              <div>{{ item.province || '' }}{{ item.city || '' }}</div>
-            </div>
-            <div class="detail-btn" @click.stop="handleView(item)"><span>查看详情</span></div>
+      <div v-for="item in markers" :key="item.id" class="tip-icon"
+        :class="[item.id === 'weijiazhuang' ? 'baoji' : markerClasses[item.type], { selected: currentActive === item.id }]">
+        <img class="marker-art" alt="" :src="projectIcons.provinceMapIcon[item.type]" />
+        <div class="mask">
+          <button type="button" class="marker-button" :aria-label="item.city + ' · ' + item.projectName"
+            :title="item.projectName" :aria-expanded="currentActive === item.id"
+            @click.stop="currentActive = currentActive === item.id ? null : item.id">
+            <span v-if="item.id === 'weijiazhuang'" class="marker-name">韦家庄光伏</span>
+          </button>
+          <div class="popover" v-if="currentActive === item.id" @click.stop>
+            <div class="close"><button type="button" aria-label="关闭项目详情" @click="currentActive = null">×</button></div>
+            <div class="label"><span>{{ projectTypes[item.type - 1] }}</span></div>
+            <div class="typeName"><div>项目名称</div><div>{{ item.projectName }}</div></div>
+            <template v-if="item.contact">
+              <div class="director"><div>负责人</div><div>{{ item.contact }}</div></div>
+              <div class="tel"><div>联系方式</div><div>{{ item.extension }}</div></div>
+            </template>
+            <div class="address"><div>项目地址</div><div>陕西省{{ item.city }}</div></div>
+            <div v-if="item.id === 'weijiazhuang'" class="director"><div>装机容量</div><div>{{ item.capacity }} MW</div></div>
+            <div v-if="item.id === 'weijiazhuang'" class="director"><div>运行状态</div><div>正常运行</div></div>
+            <router-link v-if="item.id === 'weijiazhuang' || item.permitted"
+              class="detail-btn" :to="item.id === 'weijiazhuang' ? item.path : { path: item.path, query: { id: item.id, projectName: item.projectName } }">查看详情</router-link>
           </div>
         </div>
       </div>
@@ -93,141 +92,34 @@
   </div>
 </template>
 <script>
-import { sysDict } from '@/api/dict.js'
-import { mapData, listProject } from '@/api/mapData.js'
-import icons from '@/utils/icons.js'
-const Side = () => import('@/components/Side')
-export default {
-  data() {
-    return {
-      type: '',
-      projectIcons: icons,
-      projectList: [],
-      mapTip: [],
-      currentActive: '',
-      popoverShow: false,
+import icons from '@/utils/icons'
+import { projects, projectTypes, titleText } from '@/data/overview.mjs'
+import overviewMetrics from '@/data/overviewMetrics'
 
-      //项目总数量
-      totalItems: {},
-      //   总发电量
-      grossGeneration: {},
-      //   总装机容量
-      grossCapacity: {},
-      //   总收益
-      totalRevenue: {},
-      //社会效益
-      socialBenefit: {},
-      //总上网
-      totalAccess: {},
-    }
+export default {
+  mixins: [overviewMetrics],
+  props: { permittedProjects: Function },
+  data() {
+    return { projectIcons: icons, permitted: [], projectTypes, currentActive: null,
+      markerClasses: { 1: 'fbsgf', 2: 'jzsgf', 3: 'cnxm', 4: 'cdxm' } }
   },
   computed: {
-    titleText() {
-      return (obj) => {
-        if (obj.label === null || obj.label === undefined) {
-          obj.label = ''
-        }
-        if (obj.unit === null || obj.unit === undefined) {
-          obj.unit = ''
-        }
-        if (obj.value === null || obj.value === undefined) {
-          obj.value = ''
-        }
-        return `${obj.label}${obj.unit ? '(' + obj.unit + ')' : ''}${obj.value ? ':' + obj.value : ''}`
-      }
-    },
-    iconName() {
-      return (obj) => {
-        let arr = ['', 'fbsgf', 'jzsgf', 'cnxm', 'cdxm', 'fdxm', 'sdxm']
-        return arr[obj.projectTypeId]
-      }
+    markers() {
+      return projects.map(project => {
+        if (project.id === 'weijiazhuang') return project
+        const match = this.permitted.find(p => Number(p.projectTypeId) === project.type)
+        return match ? { ...project, id: match.id, projectName: match.projectName, city: match.city,
+          contact: match.headName, extension: match.contactInfo, permitted: true } : project
+      })
     },
   },
-  async created() {
-    // this.type = this.$route.query.type || ''
-    await this.getProjectList()
-    await this.getMapData()
-    let data = {
-      projectTypeId: '',
-      provinceCode: '610000',
+  async mounted() {
+    // Existing station details use the signed-in user's project directory.
+    if (this.permittedProjects) {
+      try { this.permitted = (await this.permittedProjects()).data || [] } catch { this.permitted = [] }
     }
-    listProject(data).then((res) => {
-      this.mapTip = res.data
-    })
   },
-  mounted() {
-    document.addEventListener('click', () => {
-      this.popoverShow = false
-    })
-
-    this.$bus.$on('refreshData', () => {
-      this.getMapData()
-    })
-  },
-  methods: {
-    handleView(obj) {
-      let pathObj = {
-        1: '/fbsgf',
-        2: '/jzsgf',
-        3: '/cnxm',
-        4: '/cdxm',
-        5: '/fdxm',
-      }
-      this.$router.push({
-        path: pathObj[obj.projectTypeId],
-        query: {
-          id: obj.id,
-          projectName: obj.projectName,
-        },
-      })
-    },
-    handleTip(obj) {
-      this.currentActive = obj.id
-      this.popoverShow = true
-    },
-    getProjectList() {
-      return new Promise((resolve, reject) => {
-        sysDict({
-          type: 'project_type',
-        })
-          .then((res) => {
-            this.projectList = res.data
-            resolve(res.data)
-          })
-          .catch((err) => {
-            reject(err)
-          })
-      })
-    },
-    getMapData() {
-      return new Promise((resolve, reject) => {
-        let data = {
-          projectTypeId: this.type,
-          provinceCode: '610000',
-        }
-        mapData(data)
-          .then((res) => {
-            let data = res.data
-            this.totalItems = data.totalItems || {}
-            this.grossGeneration = data.grossGeneration || {}
-            this.grossCapacity = data.grossCapacity || {}
-            this.totalRevenue = data.totalRevenue || {}
-            this.socialBenefit = data.socialBenefit || {}
-            this.totalAccess = data.totalAccess || {}
-            resolve(res.data)
-          })
-          .catch((err) => {
-            reject(err)
-          })
-      })
-    },
-  },
-  components: {
-    Side,
-  },
-  beforeDestroy() {
-    this.$bus.$off('refreshData')
-  },
+  methods: { titleText },
 }
 </script>
 <style lang="scss" scoped>
@@ -238,12 +130,26 @@ export default {
     background-size: 100% 100%;
     background-repeat: no-repeat;
     position: absolute;
+    pointer-events: none;
+    .marker-art {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    &.selected { z-index: 3; }
     .mask {
       position: relative;
       height: 66px;
       width: 57px;
       margin-top: 25px;
-      cursor: pointer;
+      pointer-events: auto;
+      .marker-button {
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+      }
       .popover {
         width: 275px;
         min-height: 360px;
@@ -259,7 +165,10 @@ export default {
           color: #fff;
           text-align: right;
           cursor: pointer;
-          i {
+          button {
+            background: none;
+            color: inherit;
+            cursor: pointer;
             margin-top: 10px;
           }
         }
@@ -311,6 +220,7 @@ export default {
           margin-top: 16px;
         }
         .detail-btn {
+          display: block;
           margin: 15px auto 0;
           width: 173px;
           height: 33px;
@@ -379,16 +289,27 @@ export default {
       }
     }
   }
-  .fdxm {
-    width: 345px;
-    height: 195px;
-    left: 404px;
-    top: 153px;
+  .baoji {
+    width: 303px;
+    height: 196px;
+    left: 322px;
+    top: 506px;
+    .marker-art { transform: scaleX(-1); }
     .mask {
-      margin-left: 31px;
-      .popover {
-        margin-left: -306px;
-      }
+      margin: 25px 0 0 33px;
+      .popover { left: -275px; bottom: 10px; }
+    }
+    .marker-name {
+      position: absolute;
+      right: 100%;
+      top: 18px;
+      white-space: nowrap;
+      color: #d7f9ff;
+      background: #0b263f;
+      border: 1px solid #4da6bd;
+      border-radius: 4px;
+      padding: 4px 12px;
+      font-size: 17px;
     }
   }
   .pu_sx08 {

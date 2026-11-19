@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vue-cli-service serve --mode development",
     "build:test": "vue-cli-service build --mode test",
+    "build:overview": "vue-cli-service build --mode prod --dest dist-overview src/overview.js",
     "build:prod": "vue-cli-service build --mode prod",
     "lint": "vue-cli-service lint"
   },

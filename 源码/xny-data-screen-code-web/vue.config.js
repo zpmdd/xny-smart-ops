@@ -1,5 +1,6 @@
 'use strict'
 const path = require('path')
+const fs = require('fs')
 const defaultSettings = require('./src/setting.js')
 
 function resolve(dir) {
@@ -43,7 +44,9 @@ module.exports = {
     name: name,
     resolve: {
       alias: {
-        '@': resolve('src')
+        '@': resolve('src'),
+        'station-photo': fs.existsSync(resolve('src/assets/private/weijiazhuang.jpg'))
+          ? resolve('src/assets/private/weijiazhuang.jpg') : resolve('src/assets/img/jzsgf/bg_cpvo03.png')
       }
     }
   },

@@ -1,9 +1,9 @@
 <template>
-  <div class="country view">
-    <Side :back="false"></Side>
+  <div class="country view overview-screen">
+    <ScreenSide v-if="!$route.meta.standalone" :back="false" />
     <MyHeader></MyHeader>
     <div class="country-content">
-      <div class="sx" v-if="hasProject" @click="handleSX()"></div>
+      <router-link v-if="hasProject" to="/province" class="sx" aria-label="进入陕西省" title="进入陕西省"></router-link>
       <div class="l">
         <TextTittle :label="titleText(totalItems) || ''"></TextTittle>
         <div class="totalItems-content">
@@ -38,19 +38,13 @@
         </div>
       </div>
       <div class="c">
-        <div class="alarmData-content">
-          <div class="alarmData-item" v-for="(item, index) in []" :key="index" :style="{ backgroundImage: `url(${projectIcons.country.alarmData[index]})` }">
-            <div class="label">{{ item.label }}{{ item.unit ? `(${item.unit})` : '' }}</div>
-            <div class="value">{{ item.value }}</div>
-          </div>
-        </div>
         <div class="active-content">
           <div>
             <div class="label">选择项目类型，可查看该类型项目分布情况</div>
             <div class="value">
-              <div class="active-item" :class="{ active: !!checked(item) }" v-for="(item, index) in tabList" :key="index" @click="hancleTab(item, index)">
-                {{ item.dictLabel }}
-              </div>
+              <button v-for="(label, index) in projectTypes" :key="label" type="button" class="active-item"
+                :class="{ active: active.includes(index + 1) }" :aria-pressed="active.includes(index + 1)"
+                @click="toggleType(index + 1)">{{ label }}</button>
             </div>
           </div>
         </div>
@@ -100,147 +94,25 @@
   </div>
 </template>
 <script>
-import icons from '@/utils/icons.js'
-import { mapData, listProject } from '@/api/mapData.js'
-import { sysDict } from '@/api/dict.js'
-const Side = () => import('@/components/Side')
-export default {
-  data() {
-    return {
-      projectIcons: icons,
-      hasProject: false,
+import icons from '@/utils/icons'
+import { projects, projectTypes, titleText } from '@/data/overview.mjs'
+import overviewMetrics from '@/data/overviewMetrics'
 
-      //项目总数量
-      totalItems: {},
-      //   总发电量
-      grossGeneration: {},
-      //   总装机容量
-      grossCapacity: {},
-      //   总收益
-      totalRevenue: {},
-      //   告警
-      alarmData: {},
-      //   运维管理
-      devOpsData: {},
-      //运行状况
-      runningState: {},
-      //社会效益
-      socialBenefit: {},
-      //总上网
-      totalAccess: {},
-      runStatus: {},
-      // tab列表
-      tabList: [],
-      active: [],
-    }
+export default {
+  mixins: [overviewMetrics],
+  data() {
+    return { projectIcons: icons, projectTypes, active: [] }
   },
   computed: {
-    checked() {
-      return (obj) => {
-        return this.active.find((item) => {
-          return item == obj.id
-        })
-      }
+    hasProject() {
+      return !this.active.length || projects.some(project => this.active.includes(project.type))
     },
-    titleText() {
-      return (obj) => {
-        if (obj.label === null || obj.label === undefined) {
-          obj.label = ''
-        }
-        if (obj.unit === null || obj.unit === undefined) {
-          obj.unit = ''
-        }
-        if (obj.value === null || obj.value === undefined) {
-          obj.value = ''
-        }
-        return `${obj.label}${obj.unit ? '(' + obj.unit + ')' : ''}${obj.value ? ':' + obj.value : ''}`
-      }
-    },
-  },
-  async created() {
-    await this.getProjectList()
-    this.initIcon()
-    await this.getMapData()
-  },
-  mounted() {
-    this.$bus.$on('refreshData', () => {
-      this.getMapData()
-    })
   },
   methods: {
-    handleSX() {
-      this.$router.push({
-        path: '/province',
-      })
+    titleText,
+    toggleType(type) {
+      this.active = this.active.includes(type) ? this.active.filter(item => item !== type) : [...this.active, type]
     },
-    hancleTab(obj, _index) {
-      let hasTab = this.active.findIndex((item) => {
-        return item == obj.id
-      })
-      if (hasTab == -1) {
-        this.active.push(obj.id)
-      } else {
-        this.active.splice(hasTab, 1)
-      }
-      this.initIcon()
-    },
-    getMapData() {
-      return new Promise((resolve, reject) => {
-        mapData()
-          .then((res) => {
-            let data = res.data
-            this.totalItems = data.totalItems || {}
-            this.grossGeneration = data.grossGeneration || {}
-            this.grossCapacity = data.grossCapacity || {}
-            this.totalRevenue = data.totalRevenue || {}
-            this.alarmData = data.alarmData || {}
-            this.devOpsData = data.devOpsData || {}
-            this.runningState = data.runningState || {}
-            this.socialBenefit = data.socialBenefit || {}
-            this.totalAccess = data.totalAccess || {}
-            this.runStatus = data.runStatus || {}
-            resolve()
-          })
-          .catch((err) => {
-            reject(err)
-          })
-      })
-    },
-    initIcon() {
-      let data = {
-        projectTypeIdList: this.active,
-      }
-      listProject(data).then((res) => {
-        this.hasProject = res.data.length > 0
-      })
-    },
-    getProjectList() {
-      return new Promise((resolve, reject) => {
-        sysDict({
-          type: 'project_type',
-        })
-          .then((res) => {
-            this.tabList = res.data
-              .map((item) => {
-                return {
-                  id: item.id,
-                  dictLabel: item.dictLabel,
-                }
-              })
-              .filter((item) => item.id != 6)
-            resolve(res)
-          })
-          .catch((err) => {
-            reject(err)
-          })
-      })
-    },
-  },
-  components: {
-    Side,
-  },
-  beforeDestroy() {
-    this.$bus.$off('refreshData')
   },
 }
 </script>
@@ -258,6 +130,7 @@ export default {
       left: 997px;
       height: 84px;
       width: 85px;
+      z-index: 1;
       cursor: pointer;
       background-repeat: no-repeat;
       background-size: 100% 100%;
@@ -272,7 +145,7 @@ export default {
       padding: 27px 30px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-end;
       height: 100%;
     }
     .l {
@@ -537,38 +410,6 @@ export default {
         }
       }
     }
-    .alarmData-content {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 19px 19px;
-      .alarmData-item {
-        width: 193px;
-        height: 69px;
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        padding-left: 50px;
-        padding-top: 8px;
-        .label {
-          font-size: 14px;
-        }
-        .value {
-          color: #e8feff;
-          font-size: 22px;
-          padding-left: 6px;
-          margin-top: 4px;
-        }
-        &:nth-child(1) {
-          .label {
-            color: #1ff2ff;
-          }
-        }
-        &:nth-child(2) {
-          .label {
-            color: #e5a974;
-          }
-        }
-      }
-    }
     .active-content {
       display: flex;
       justify-content: center;
@@ -582,6 +423,7 @@ export default {
         display: flex;
         .active-item {
           cursor: pointer;
+          background-color: transparent;
           width: 127px;
           height: 64px;
           background-repeat: no-repeat;
@@ -590,7 +432,7 @@ export default {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #44baed;
+          color: #90dcfa;
           font-size: 16px;
         }
         .active {

@@ -5,6 +5,7 @@ Vue.use(Router)
 
 /* Layout */
 import Layout from '@/layout'
+import { overviewRoutes } from './overview'
 export const constantRoutes = [
   {
     path: '/redirect',
@@ -22,16 +23,10 @@ export const constantRoutes = [
     component: Layout,
     redirect: '/country',
     children: [
-      {
-        path: '/country',
-        component: () => import('@/page/country/index'),
-        name: 'country',
-      },
-      {
-        path: '/province',
-        component: () => import('@/page/province/index'),
-        name: 'province',
-      },
+      ...overviewRoutes.map(route => route.name === 'province' ? {
+        ...route,
+        props: { permittedProjects: () => import('@/api/mapData').then(api => api.listProject({ provinceCode: '610000' })) },
+      } : route),
       {
         path: '/fbsgf',
         component: () => import('@/page/fbsgf/index'),
@@ -75,6 +70,7 @@ export const constantRoutes = [
             path: 'pvGlobalOverview',
             component: () => import('@/page/jzsgf/view/pvGlobalOverview'),
             name: 'jzsgfPvGlobalOverview',
+            props: { fetchOverview: () => import('@/api/jzsgf').then(api => api.burstingGlobalView()) },
           },
           {
             path: 'inverterMonitoring',

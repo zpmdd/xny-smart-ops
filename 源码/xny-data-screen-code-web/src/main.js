@@ -34,6 +34,7 @@ import TextTittle from '@/components/TextTittle'
 import MyHeader from '@/components/Header'
 Vue.component('TextTittle', TextTittle)
 Vue.component('MyHeader', MyHeader)
+Vue.component('ScreenSide', () => import('@/components/Side'))
 
 import * as echarts from 'echarts'
 import 'echarts-gl'

@@ -1,6 +1,14 @@
 <template>
-  <div class="jzsgf-pvGlobalOverview view">
+  <div class="jzsgf-pvGlobalOverview view" :class="{ 'overview-screen weijiazhuang': weijiazhuang }">
     <MyHeader></MyHeader>
+    <template v-if="weijiazhuang">
+      <router-link to="/province" class="overview-back">‹ 返回陕西省</router-link>
+      <div class="station-heading">
+        <h1>韦家庄光伏</h1>
+        <p>陕西省宝鸡市 · 集中式光伏</p>
+        <p>实时有功功率　<strong>{{ power }} MW</strong></p>
+      </div>
+    </template>
     <div class="view-container">
       <div class="content-view">
         <div class="l">
@@ -48,27 +56,7 @@
             </div>
           </div>
         </div>
-        <!-- <div class="c">
-          <div class="devOpsData-content">
-            <div class="devOpsData-item" v-for="(item, index) in devOpsData.childs || []" :key="index">
-              <div class="icon" :style="{ backgroundImage: `url(${projectIcons.jzsgf.devOpsData[index]})` }"></div>
-              <div class="values">
-                <div class="label" v-html="item.label"></div>
-                <div class="value">
-                  {{ item.value }}<span class="unit" v-if="item.unit">{{ item.unit }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div> -->
         <div class="r">
-          <!-- <TextTittle :label="inverterData?.label || ''"></TextTittle>
-          <div class="inverterData-content">
-            <div class="inverterData-item" v-for="(item, index) in inverterData.childs || []" :key="index">
-              <div class="label">{{ item.label }}{{ item.unit ? '/' + item.unit : '' }}</div>
-              <div class="value">{{ item.value }}</div>
-            </div>
-          </div> -->
           <TextTittle :label="devOpsData?.label || '运维数据'"></TextTittle>
           <div class="socialBenefit-content">
             <div class="socialBenefit-item" v-for="(item, index) in devOpsData.childs || []" :key="index">
@@ -94,10 +82,6 @@
           <TextTittle v-if="chart1Data?.label" :label="chart1Data?.label || ''"></TextTittle>
           <div class="chart-content" ref="chart1"></div>
         </div>
-        <!-- <div class="chart-item">
-          <TextTittle v-if="chart2Data?.label" :label="chart2Data?.label || ''"></TextTittle>
-          <div class="chart-content" ref="chart2"></div>
-        </div> -->
         <div class="chart-item">
           <TextTittle v-if="chart3Data?.label" :label="chart3Data?.label || ''"></TextTittle>
           <div class="chart-content" ref="chart3"></div>
@@ -107,114 +91,82 @@
   </div>
 </template>
 <script>
-import { burstingGlobalView } from '@/api/jzsgf.js'
 import icons from '@/utils/icons.js'
+import { readSnapshot } from '@/data/overview.mjs'
+
 export default {
   name: 'jzsgfPvGlobalOverview',
+  props: { weijiazhuang: Boolean, fetchOverview: Function },
   data() {
     return {
-      projectIcons: icons,
-
-      // 累计发电
-      fdData: {},
-      // 累计收益
-      syData: {},
-      // 其他数据
-      otherData: {},
-      // 环境数据
-      envData: {},
-      // 运行数据
-      devOpsData: {},
-      // 逆变器监测
-      inverterData: {},
-      // 社会贡献
-      socialBenefit: {},
-
-      chart1Dom: null,
-      chart2Dom: null,
-      chart3Dom: null,
-      chart1Data: {},
-      chart2Data: {},
-      chart3Data: {},
+      projectIcons: icons, power: 0,
+      fdData: {}, syData: {}, envData: {}, otherData: {}, devOpsData: {}, socialBenefit: {},
+      chart1Data: {}, chart3Data: {},
     }
   },
-  created() {
-    this.initData()
-  },
   mounted() {
-    this.$bus.$on('onresize', () => {
-      this.initChart()
-    })
-    this.$bus.$on('refreshData', () => {
-      this.initData('1')
-    })
+    this.charts = [this.$refs.chart1, this.$refs.chart3].map(el => this.$echarts.init(el, null, { renderer: 'svg' }))
+    this.$bus.$on('onresize', this.drawCharts)
+    this.$bus.$on('refreshData', this.loadOverview)
+    this.loadOverview()
   },
   methods: {
-    initData(needInitChart) {
-      burstingGlobalView().then((res) => {
-        let data = res.data
-        this.fdData = data.fdData || {}
-        this.syData = data.syData || {}
-        this.envData = data.envData || {}
-        this.otherData = data.otherData || {}
-        this.devOpsData = data.devOpsData || {}
-        if (this.devOpsData.childs) {
-          this.devOpsData.childs = this.devOpsData.childs.concat(data.failureData?.childs || [])
-        }
-        this.inverterData = data.inverterData || {}
-        this.socialBenefit = data.socialBenefit || {}
-        this.chart1Data = data.chartList[0]
-        this.chart1Data.childs[0].style = '0'
-        this.chart1Data.childs[0].color = '29, 210, 255'
-        // this.chart2Data = data.chartList[1]
-        // this.chart2Data.childs[0].style = '0'
-        // this.chart2Data.childs[0].color = '41, 245, 175'
-        this.chart3Data = data.chartList[2]
-        this.chart3Data.childs[0].style = '1'
-        this.chart3Data.childs[0].color = '126, 184, 255'
-        this.$nextTick(() => {
-          if (!needInitChart) {
-            this.chart1Dom = this.$echarts.init(this.$refs.chart1, null, { renderer: 'svg' })
-            // this.chart2Dom = this.$echarts.init(this.$refs.chart2, null, { renderer: 'svg' })
-            this.chart3Dom = this.$echarts.init(this.$refs.chart3, null, { renderer: 'svg' })
-          }
-          this.initChart()
-        })
-      })
+    async loadOverview() {
+      const data = this.weijiazhuang ? readSnapshot().station : (await this.fetchOverview()).data
+      if (this._isDestroyed) return
+      if (this.weijiazhuang) this.power = data.power
+      this.fdData = data.fdData || {}
+      this.syData = data.syData || {}
+      this.envData = data.envData || {}
+      this.otherData = data.otherData || {}
+      this.devOpsData = { ...data.devOpsData, childs: [...(data.devOpsData?.childs || []), ...(data.failureData?.childs || [])] }
+      this.socialBenefit = data.socialBenefit || {}
+      this.chart1Data = this.weijiazhuang ? data.powerChart : data.chartList[0]
+      this.chart3Data = this.weijiazhuang ? data.energyChart : data.chartList[2]
+      this.$nextTick(this.drawCharts)
     },
-    initChart() {
-      this.$nextTick(() => {
-        let chart1Options = {
-          data: this.chart1Data,
-          needStart: true,
-        }
-        this.chart1Dom.setOption(this.$initChart(chart1Options))
-        this.chart1Dom.resize()
-        // let chart2Options = {
-        //   data: this.chart2Data,
-        //   needStart: true,
-        // }
-        // this.chart2Dom.setOption(this.$initChart(chart2Options))
-        // this.chart2Dom.resize()
-        let chart3Options = {
-          data: this.chart3Data,
-          needStart: true,
-          needShadow: false,
-          smooth: false,
-          vm: this,
-        }
-        this.chart3Dom.setOption(this.$initChart(chart3Options))
-        this.chart3Dom.resize()
-      })
+    drawCharts() {
+      if (!this.charts || !this.chart1Data.childs || !this.chart3Data.childs) return
+      const draw = (chart, data, style, color) => {
+        const childs = data.childs.map(series => ({ ...series, style, color }))
+        chart.resize()
+        chart.setOption(this.$initChart({ data: { ...data, childs }, needStart: true, vm: this, smooth: style === '0' }))
+      }
+      draw(this.charts[0], this.chart1Data, '0', '29, 210, 255')
+      draw(this.charts[1], this.chart3Data, '1', '126, 184, 255')
     },
   },
   beforeDestroy() {
-    this.$bus.$off('onresize')
-    this.$bus.$off('refreshData')
+    this.$bus.$off('onresize', this.drawCharts)
+    this.$bus.$off('refreshData', this.loadOverview)
+    this.charts.forEach(chart => chart.dispose())
+    this.charts = null
   },
 }
 </script>
 <style lang="scss" scoped>
+.weijiazhuang.jzsgf-pvGlobalOverview {
+  background-color: #071827;
+  background-image:
+    linear-gradient(0deg, #061424 1%, rgba(4,17,32,.96) 25%, transparent 57%, rgba(5,18,31,.1) 77%, #071523 100%),
+    linear-gradient(90deg, rgba(3,13,27,.98) 0%, rgba(3,13,27,.84) 18%, transparent 39%, transparent 61%, rgba(3,13,27,.85) 82%, rgba(3,13,27,.98) 100%),
+    url('~station-photo');
+  background-size: 100% 100%, 100% 100%, cover;
+  background-position: center, center, center 55%;
+  .view-container .chart-view {
+    height: 250px;
+    .chart-item .chart-content { height: 198px; }
+  }
+  .station-heading {
+    position: absolute;
+    left: 490px;
+    bottom: 355px;
+    color: #fff;
+    text-shadow: 0 2px 10px #071827;
+    h1 { font-size: 34px; letter-spacing: 3px; }
+    p { margin-top: 5px; font-size: 18px; color: #d1e6ef; }
+  }
+}
 .jzsgf-pvGlobalOverview {
   background-image: url('~@/assets/img/jzsgf/bg_cpvo03.png');
   .view-container {
