@@ -41,7 +41,18 @@ async function releaseStep(player, method, report) {
   }
 }
 
-export function cameraPreview({ getInfo, nextTick, createPlayer, show, status }) {
+function observeSdkMessage(id, notify) {
+  // EZUIKit 8.0.8 writes some autoplay failures to its overlay without calling handleError.
+  const host = document.getElementById(id).parentElement
+  const observer = new MutationObserver(() => {
+    const hint = document.getElementById(id + '-loading-item-txt')
+    if (hint && host.contains(hint)) notify(hint.textContent)
+  })
+  observer.observe(host, { childList: true, characterData: true, subtree: true })
+  return () => observer.disconnect()
+}
+
+export function cameraPreview({ getInfo, nextTick, createPlayer, show, status, observeMessage = observeSdkMessage }) {
   let current = null
   let closing = null
   async function open() {
@@ -73,10 +84,33 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status })
       if (current !== session) return
       status('正在连接摄像头')
       report('初始化播放器')
+      session.disconnect = observeMessage(session.id, text => {
+        if (current !== session) return
+        let event, message
+        if (text.startsWith('设备不在线')) {
+          const deviceStatus = session.player?.deviceInfo?.status
+          if (deviceStatus === 0) {
+            event = '萤石设备离线（status=0）'
+            message = '设备不在线，请检查供电和网络'
+          } else {
+            event = deviceStatus === 1 ? 'SDK 提示离线，萤石设备状态为在线' : 'SDK 提示离线，萤石设备状态未确认'
+            message = event
+          }
+        } else if (text.startsWith('同时观看人数达到账号最大限制')) {
+          event = message = '同时观看人数达到账号最大限制'
+        } else {
+          return
+        }
+        if (session.lastHint === event) return
+        session.lastHint = event
+        report(event)
+        status(message)
+      })
       session.player = createPlayer({
         id: session.id, url, accessToken: token, template: 'pcLive', maxReloadTime: 0,
         handleSuccess() {
           if (current !== session) return
+          session.lastHint = ''
           report('SDK 播放成功')
           status('')
         },
@@ -98,6 +132,7 @@ export function cameraPreview({ getInfo, nextTick, createPlayer, show, status })
     if (!current) return closing || Promise.resolve()
     const session = current
     current = null // Ignore late API responses and callbacks from this particular instance.
+    session.disconnect?.()
     const report = (event, code) => record(session.id, event, code)
     report('关闭监控')
     if (!session.player) {

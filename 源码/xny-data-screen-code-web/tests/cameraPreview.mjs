@@ -13,6 +13,7 @@ function fixture(overrides = {}) {
   const preview = cameraPreview({
     getInfo: async () => { calls.push('info'); return ready },
     nextTick: async () => {},
+    observeMessage: () => () => {},
     createPlayer(options) {
       callbacks = options
       calls.push('create')
@@ -42,6 +43,35 @@ one.callbacks.handleError({ retcode: 9999 })
 assert.equal(cameraLogText(), before)
 assert.match(before, /5546/)
 assert.doesNotMatch(before, /fixture-/)
+
+let sdkMessage
+let disconnected = false
+const offline = fixture({
+  observeMessage(id, notify) {
+    sdkMessage = notify
+    return () => { disconnected = true }
+  },
+  createPlayer: () => ({ deviceInfo: { status: 0 }, stop() {}, destroy() {} }),
+})
+await offline.preview.open()
+sdkMessage('设备不在线，请优化网络后重启设备再试')
+sdkMessage('设备不在线，请优化网络后重启设备再试')
+sdkMessage('fixture-secret')
+assert.deepEqual(offline.calls.slice(-1), ['设备不在线，请检查供电和网络'])
+assert.equal(JSON.parse(cameraLogText()).events.filter(e => e.event === '萤石设备离线（status=0）').length, 1)
+await offline.preview.close()
+assert.ok(disconnected)
+const afterClose = cameraLogText()
+sdkMessage('同时观看人数达到账号最大限制，请联系客服')
+assert.equal(cameraLogText(), afterClose)
+
+const unknown = fixture({ observeMessage(id, notify) { sdkMessage = notify; return () => {} } })
+await unknown.preview.open()
+sdkMessage('设备不在线，请优化网络后重启设备再试')
+assert.match(unknown.calls.at(-1), /未确认/)
+sdkMessage('同时观看人数达到账号最大限制，请联系客服')
+assert.match(unknown.calls.at(-1), /观看人数/)
+await unknown.preview.close()
 
 const info = pending()
 const late = fixture({ getInfo: () => info.promise })
