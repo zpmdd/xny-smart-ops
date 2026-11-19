@@ -1,7 +1,9 @@
 // Keep all pre-existing non-overview routes on the currently deployed application.
 ;(function () {
   const entries = /* BUILD_ENTRIES */ []
-  const overviewPath = () => ['', '/', '/country', '/province', '/weijiazhuang'].includes(location.hash.slice(1).split('?')[0])
+  // Both PV stations share the same chart component and its resize lifecycle.
+  const overviewRoutes = ['', '/', '/country', '/province', '/weijiazhuang', '/jzsgf', '/jzsgf/pvGlobalOverview']
+  const overviewPath = () => overviewRoutes.includes(location.hash.slice(1).split('?')[0])
   const useOverview = overviewPath()
   let switching = false
   function switchEntry() {
