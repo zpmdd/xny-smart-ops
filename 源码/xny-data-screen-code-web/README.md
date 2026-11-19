@@ -89,4 +89,8 @@ npm run build:test
 
 韦家庄项目简介的负责人和联系电话分别通过本地构建变量 `VUE_APP_WEIJIAZHUANG_CONTACT` 和 `VUE_APP_WEIJIAZHUANG_PHONE` 提供。
 
-维护已有站点时，先保存线上原始大屏目录。运行 `python3 scripts/compose-screen-release.py 原始大屏目录 dist 新目录`，三个目标页及共用的集中式光伏总览使用同一构建，原场站继续读取原接口，其余路由继续加载原有资源。后续重复发布仍以留存的原始 Vue CLI 入口作为第一个参数。
+维护已有站点时，先保存线上原始大屏目录。运行 `python3 scripts/compose-screen-release.py 原始大屏目录 dist 新目录`，三个目标页、原集中式光伏总览和带智能监控的分布式光伏总览使用同一构建，原场站继续读取原接口，其余路由继续加载原有资源。后续重复发布仍以留存的原始 Vue CLI 入口作为第一个参数。
+
+### 智能监控
+
+分布式光伏总览使用维护方提供的 `src/static/ezuikit.js`。发布前运行 `node tests/cameraPreview.mjs` 并核对候选包包含播放器。点击一次“智能监控”即可预览，关闭窗口后可点“导出监控日志”。同一标签页保存最近 120 条事件，包括 UTC 时间、播放批次、SDK 原始错误码和停止、销毁结果。

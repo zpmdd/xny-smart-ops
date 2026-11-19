@@ -70,11 +70,15 @@
     </div>
     <div class="router-cnxm" @click="handleRouter(1)" v-if="roles.includes('10300')">储能项目</div>
     <div class="router-cdxm" @click="handleRouter(2)" v-if="roles.includes('10400')">充电项目</div>
-    <div class="router-video" @click="handleRouter(3)">智能监控</div>
-    <Dialog :visible="videoShow" @close="handleDialog">
+    <div class="router-video" role="button" tabindex="0" @click="camera.open()" @keydown.enter.prevent="camera.open()" @keydown.space.prevent="camera.open()">智能监控</div>
+    <button class="camera-log-link" type="button" @click="exportCameraLog">导出监控日志</button>
+    <Dialog :visible="!!cameraId" @close="camera.close()">
       <div class="video-content">
-        <div class="close-icon" @click="handleDialog"></div>
-        <div id="ezuikit-player"></div>
+        <button class="close-icon" type="button" aria-label="关闭监控" @click="camera.close()"></button>
+        <div class="camera-toolbar"><span role="status">{{ cameraStatus }}</span>
+          <button type="button" @click="exportCameraLog">导出监控日志</button>
+        </div>
+        <div class="camera-player" :id="cameraId"></div>
       </div>
     </Dialog>
   </div>
@@ -85,6 +89,8 @@ import { pvGlobalOverview, getPlayInfo } from '@/api/fbsgf.js'
 import { getPermsTree } from '@/api/user'
 import { mapState } from 'vuex'
 import Dialog from '@/components/Dialog'
+import { saveAs } from 'file-saver'
+import { cameraPreview, cameraLogText } from '@/utils/cameraPreview.mjs'
 
 const videoSdks = require.context('@/static', false, /^\.\/ezuikit\.js$/)
 
@@ -116,11 +122,8 @@ export default {
 
       roles: [],
 
-      videoShow: false,
-
-      player: null,
-      accessToken: '',
-      playerUrl: '',
+      cameraId: '',
+      cameraStatus: '',
     }
   },
   computed: {
@@ -129,20 +132,29 @@ export default {
     }),
   },
   async created() {
+    this.camera = cameraPreview({
+      getInfo: getPlayInfo,
+      nextTick: () => this.$nextTick(),
+      createPlayer: options => {
+        if (!videoSdks.keys().includes('./ezuikit.js')) throw new Error('缺少视频 SDK')
+        const sdk = videoSdks('./ezuikit.js')
+        return new (sdk.default || sdk).EZUIKitPlayer(options)
+      },
+      show: id => { this.cameraId = id },
+      status: message => { this.cameraStatus = message },
+    })
+    window.addEventListener('pagehide', this.camera.close)
     await this.getPermsTree()
-    this.initData()
+    if (!this._isDestroyed) this.initData()
   },
   mounted() {
-    this.$bus.$on('onresize', () => {
-      this.initChart()
-    })
-    this.$bus.$on('refreshData', () => {
-      this.initData('1')
-    })
+    this.$bus.$on('onresize', this.initChart)
+    this.$bus.$on('refreshData', this.initData)
   },
   methods: {
-    handleDialog() {
-      this.videoShow = false
+    exportCameraLog() {
+      const file = new Blob([cameraLogText()], { type: 'application/json;charset=utf-8' })
+      saveAs(file, '智能监控日志-' + Date.now() + '.json')
     },
     handleClearBtn() {
       this.$router.push('/fbsgf/clear')
@@ -174,15 +186,6 @@ export default {
           })
       })
     },
-    destroy() {
-      try {
-        let destroyPromise = this.player.destroy()
-        destroyPromise.then((data) => {
-          console.log('promise 获取 数据', data)
-        })
-      } catch (error) {}
-      this.player = null
-    },
     handleRouter(flag) {
       if (flag == 1) {
         this.$router.push('/cnxm/deviceMonitor')
@@ -190,46 +193,10 @@ export default {
       if (flag == 2) {
         this.$router.push('/cdxm/chargingStation')
       }
-      if (flag == 3) {
-        if (!videoSdks.keys().includes('./ezuikit.js')) {
-          this.$message.warning('视频 SDK 尚未配置')
-          return
-        }
-        const sdkModule = videoSdks('./ezuikit.js')
-        const EZUIKit = sdkModule.default || sdkModule
-        if (this.player) {
-          this.destroy()
-        }
-        getPlayInfo().then((res) => {
-          let data = res.data
-          this.playerUrl = data.url
-          this.accessToken = data.token
-          this.videoShow = true
-          this.$nextTick(() => {
-            let _that = this
-            this.player = new EZUIKit.EZUIKitPlayer({
-              id: `ezuikit-player`,
-              url: _that.playerUrl,
-              accessToken: _that.accessToken,
-              // simple: 极简版; pcLive: pc直播; pcRec: pc回放; mobileLive: 移动端直播; mobileRec: 移动端回放;security: 安防版; voice: 语音版;
-              template: 'pcLive',
-              // width: 755,
-              // height:430,
-            })
-            try {
-              // this.$nextTick(() => {
-                
-              // })
-              setTimeout(() => {
-                this.player.play()
-              }, 1000);
-            } catch (error) {}
-          })
-        })
-      }
     },
-    initData(needInitChart) {
+    initData() {
       pvGlobalOverview().then((res) => {
+        if (this._isDestroyed) return
         let data = res.data
         this.dataView = data.dataView || {}
         this.devOpsData = data.devOpsData || {}
@@ -258,7 +225,8 @@ export default {
           this.chart4Data.childs[1].color = '0, 174, 255'
         } catch (error) {}
         this.$nextTick(() => {
-          if (!needInitChart) {
+          if (!this.$refs.chart1 || !this.$refs.chart2) return
+          if (!this.chart1Dom) {
             this.chart1Dom = this.$echarts.init(this.$refs.chart1, null, { renderer: 'svg' })
             this.chart2Dom = this.$echarts.init(this.$refs.chart2, null, { renderer: 'svg' })
             // this.chart3Dom = this.$echarts.init(this.$refs.chart3, null, { renderer: 'svg' })
@@ -270,6 +238,7 @@ export default {
     },
     initChart() {
       this.$nextTick(() => {
+        if (!this.chart1Dom || !this.chart2Dom || this._isDestroyed) return
         let chart1Options = {
           data: this.chart1Data,
         }
@@ -301,10 +270,16 @@ export default {
       })
     },
   },
+  beforeRouteLeave(to, from, next) {
+    this.camera.close().then(() => next())
+  },
   beforeDestroy() {
-    this.$bus.$off('onresize')
-    this.$bus.$off('refreshData')
-    this.destroy()
+    this.$bus.$off('onresize', this.initChart)
+    this.$bus.$off('refreshData', this.initData)
+    this.chart1Dom?.dispose()
+    this.chart2Dom?.dispose()
+    window.removeEventListener('pagehide', this.camera.close)
+    this.camera.close()
   },
   components: {
     Dialog,
@@ -335,11 +310,20 @@ export default {
     background-image: url('~@/assets/img/fbsgf/bg_mosan_popup0.png');
     padding-left: 64px;
     padding-top: 50px;
-    #ezuikit-player {
-      margin-left: 64px;
-      margin-top: 50px;
+    .camera-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 755px;
+      height: 30px;
+      color: #d1e6ef;
+      font-size: 15px;
+      button { color: #93deff; background: transparent; cursor: pointer; }
     }
+    .camera-player { width: 755px; height: 410px; }
     .close-icon {
+      background: transparent;
+      border: 0;
       height: 30px;
       width: 30px;
       position: absolute;
@@ -643,6 +627,18 @@ export default {
     cursor: pointer;
   }
 
+  .camera-log-link {
+    position: absolute;
+    left: 1133px;
+    top: 752px;
+    padding: 2px 8px;
+    font-size: 14px;
+    color: #c1eaff;
+    background: #0b253d;
+    border: 1px solid #427398;
+    border-radius: 3px;
+    cursor: pointer;
+  }
   .router-video {
     width: 115px;
     height: 138px;

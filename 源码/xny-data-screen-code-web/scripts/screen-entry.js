@@ -1,8 +1,8 @@
 // Keep all pre-existing non-overview routes on the currently deployed application.
 ;(function () {
   const entries = /* BUILD_ENTRIES */ []
-  // Both PV stations share the same chart component and its resize lifecycle.
-  const overviewRoutes = ['', '/', '/country', '/province', '/weijiazhuang', '/jzsgf', '/jzsgf/pvGlobalOverview']
+  // Keep updated PV overview pages and their default redirects on the new entry.
+  const overviewRoutes = ['', '/', '/country', '/province', '/weijiazhuang', '/jzsgf', '/jzsgf/pvGlobalOverview', '/fbsgf', '/fbsgf/pvGlobalOverview']
   const overviewPath = () => overviewRoutes.includes(location.hash.slice(1).split('?')[0])
   const useOverview = overviewPath()
   let switching = false
